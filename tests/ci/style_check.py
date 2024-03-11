@@ -95,13 +95,6 @@ def commit_push_staged(pr_info: PRInfo) -> None:
         git_runner(push_cmd)
 
 
-def checkout_last_ref(pr_info: PRInfo) -> None:
-    # Checkout the merge commit back to avoid special effects
-    assert pr_info.number
-    if not pr_info.head_name == pr_info.base_name:
-        # We can't push to forks, sorry folks
-        return
-    git_runner("git checkout -f -")
 
 
 def main():
@@ -168,7 +161,6 @@ def main():
             _ = future2.result()
             if args.push:
                 commit_push_staged(pr_info)
-                checkout_last_ref(pr_info)
 
     subprocess.check_call(
         f"python3 ../../utils/check-style/process_style_check_result.py --in-results-dir {temp_path} "

@@ -14,7 +14,8 @@ from docker_images_helper import get_docker_image, pull_image
 from env_helper import CI, REPO_COPY, TEMP_PATH
 from git_helper import GIT_PREFIX, git_runner
 from pr_info import PRInfo
-from report import ERROR, FAILURE, SUCCESS, JobReport, TestResults, read_test_results
+from report import (
+    ERROR, FAILURE, SUCCESS, JobReport, TestResults, read_test_results)
 from ssh import SSHKey
 from stopwatch import Stopwatch
 

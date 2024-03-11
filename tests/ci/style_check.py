@@ -79,9 +79,12 @@ def commit_push_staged(pr_info: PRInfo) -> None:
     if not git_staged:
         return
     remote_url = pr_info.event["pull_request"]["base"]["repo"]["ssh_url"]
+    head = git_runner("git rev-parse HEAD^{}")
     git_runner(f"{GIT_PREFIX} commit -m 'Automatic style fix'")
-    # The fetch to avoid issue 'tip behind the branch'
-    fetch_cmd = f"{GIT_PREFIX} fetch {remote_url} {pr_info.head_ref}"
+    # The fetch to avoid issue 'pushed branch tip is behind its remote'
+    fetch_cmd = (
+        f"{GIT_PREFIX} fetch {remote_url} --no-recurse-submodules --depth=2 {head}"
+    )
     push_cmd = f"{GIT_PREFIX} push {remote_url} HEAD:{pr_info.head_ref}"
     if os.getenv("ROBOT_CLICKHOUSE_SSH_KEY", ""):
         with SSHKey("ROBOT_CLICKHOUSE_SSH_KEY"):

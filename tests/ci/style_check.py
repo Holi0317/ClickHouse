@@ -81,7 +81,7 @@ def commit_push_staged(pr_info: PRInfo) -> None:
     remote_url = pr_info.event["pull_request"]["base"]["repo"]["ssh_url"]
     git_runner(f"{GIT_PREFIX} commit -m 'Automatic style fix'")
     push_cmd = (
-        f"{GIT_PREFIX} push {remote_url} head-{pr_info.head_ref}:{pr_info.head_ref}"
+        f"{GIT_PREFIX} push {remote_url} HEAD:{pr_info.head_ref}"
     )
     if os.getenv("ROBOT_CLICKHOUSE_SSH_KEY", ""):
         with SSHKey("ROBOT_CLICKHOUSE_SSH_KEY"):

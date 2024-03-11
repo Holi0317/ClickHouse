@@ -14,7 +14,8 @@ from docker_images_helper import get_docker_image, pull_image
 from env_helper import CI, REPO_COPY, TEMP_PATH
 from git_helper import GIT_PREFIX, git_runner
 from pr_info import PRInfo
-from report import ERROR, FAILURE, SUCCESS, JobReport, TestResults, read_test_results
+from report import (
+    ERROR, FAILURE, SUCCESS, JobReport, TestResults, read_test_results)
 from ssh import SSHKey
 from stopwatch import Stopwatch
 
@@ -67,26 +68,6 @@ def parse_args():
     return parser.parse_args()
 
 
-def checkout_head(pr_info: PRInfo) -> None:
-    # It works ONLY for PRs, and only over ssh, so either
-    # ROBOT_CLICKHOUSE_SSH_KEY should be set or ssh-agent should work
-    assert pr_info.number
-    if not pr_info.head_name == pr_info.base_name:
-        # We can't push to forks, sorry folks
-        return
-    remote_url = pr_info.event["pull_request"]["base"]["repo"]["ssh_url"]
-    fetch_cmd = (
-        f"{GIT_PREFIX} fetch --depth=1 "
-        f"{remote_url} {pr_info.head_ref}:head-{pr_info.head_ref}"
-    )
-    if os.getenv("ROBOT_CLICKHOUSE_SSH_KEY", ""):
-        with SSHKey("ROBOT_CLICKHOUSE_SSH_KEY"):
-            git_runner(fetch_cmd)
-    else:
-        git_runner(fetch_cmd)
-    git_runner(f"git checkout -f head-{pr_info.head_ref}")
-
-
 def commit_push_staged(pr_info: PRInfo) -> None:
     # It works ONLY for PRs, and only over ssh, so either
     # ROBOT_CLICKHOUSE_SSH_KEY should be set or ssh-agent should work
@@ -98,24 +79,22 @@ def commit_push_staged(pr_info: PRInfo) -> None:
     if not git_staged:
         return
     remote_url = pr_info.event["pull_request"]["base"]["repo"]["ssh_url"]
+    head = git_runner("git rev-parse HEAD^{}")
     git_runner(f"{GIT_PREFIX} commit -m 'Automatic style fix'")
-    push_cmd = (
-        f"{GIT_PREFIX} push {remote_url} head-{pr_info.head_ref}:{pr_info.head_ref}"
+    # The fetch to avoid issue 'pushed branch tip is behind its remote'
+    fetch_cmd = (
+        f"{GIT_PREFIX} fetch {remote_url} --no-recurse-submodules --depth=2 {head}"
     )
+    push_cmd = f"{GIT_PREFIX} push {remote_url} HEAD:{pr_info.head_ref}"
     if os.getenv("ROBOT_CLICKHOUSE_SSH_KEY", ""):
         with SSHKey("ROBOT_CLICKHOUSE_SSH_KEY"):
+            git_runner(fetch_cmd)
             git_runner(push_cmd)
     else:
+        git_runner(fetch_cmd)
         git_runner(push_cmd)
 
 
-def checkout_last_ref(pr_info: PRInfo) -> None:
-    # Checkout the merge commit back to avoid special effects
-    assert pr_info.number
-    if not pr_info.head_name == pr_info.base_name:
-        # We can't push to forks, sorry folks
-        return
-    git_runner("git checkout -f -")
 
 
 def main():
@@ -177,14 +156,11 @@ def main():
             _ = future1.result()
 
         if run_pycheck:
-            if args.push:
-                checkout_head(pr_info)
             logging.info("Run py files check: %s", cmd_py)
             future2 = executor.submit(subprocess.run, cmd_py, shell=True)
             _ = future2.result()
             if args.push:
                 commit_push_staged(pr_info)
-                checkout_last_ref(pr_info)
 
     subprocess.check_call(
         f"python3 ../../utils/check-style/process_style_check_result.py --in-results-dir {temp_path} "

@@ -157,6 +157,28 @@ bool SLRUFileCachePriority::collectCandidatesForEviction(
     return true;
 }
 
+EvictionCandidates SLRUFileCachePriority::collectCandidatesForEviction(
+    size_t candidates_num,
+    FileCacheReserveStat & stat,
+    const CacheGuard::Lock & lock)
+{
+    if (!candidates_num)
+        return {};
+
+    auto res = probationary_queue.collectCandidatesForEviction(candidates_num, stat, lock);
+
+    chassert(res.size() <= candidates_num);
+    chassert(candidates_num >= stat.stat.releasable_count);
+
+    if (res.size() == candidates_num)
+        return res;
+
+    chassert(candidates_num > stat.stat.releasable_count);
+    auto res_add = protected_queue.collectCandidatesForEviction(candidates_num - stat.stat.releasable_count, stat, lock);
+    res.add(res_add, lock);
+    return res;
+}
+
 void SLRUFileCachePriority::increasePriority(SLRUIterator & iterator, const CacheGuard::Lock & lock)
 {
     /// If entry is already in protected queue,

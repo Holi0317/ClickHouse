@@ -47,6 +47,11 @@ public:
         const UserID & user_id,
         const CacheGuard::Lock &) override;
 
+    EvictionCandidates collectCandidatesForEviction(
+        size_t candidates_num,
+        FileCacheReserveStat & stat,
+        const CacheGuard::Lock &) override;
+
     void shuffle(const CacheGuard::Lock &) override;
 
     PriorityDumpPtr dump(const CacheGuard::Lock &) override;
